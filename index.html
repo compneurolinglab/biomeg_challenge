@@ -598,17 +598,19 @@
         }
 
         .organizer-avatar {
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, var(--navy-light) 0%, var(--navy) 100%);
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             margin: 0 auto 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            color: var(--white);
-            font-family: 'Playfair Display', serif;
+            overflow: hidden;
+            border: 3px solid var(--orange);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .organizer-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .organizer-card h4 {
@@ -850,7 +852,7 @@
                 <a href="#about" class="btn btn-secondary">Learn More</a>
             </div>
             <div class="hero-image">
-                <img src="logo.png" alt="BIOMEG 2026 LPP Decoding Challenge" class="hero-logo">
+                <img src="pics/logo.png" alt="BIOMEG 2026 LPP Decoding Challenge" class="hero-logo">
             </div>
         </div>
     </section>
@@ -1104,27 +1106,37 @@
             </div>
             <div class="organizers-grid">
                 <div class="organizer-card">
-                    <div class="organizer-avatar">OF</div>
+                    <div class="organizer-avatar">
+                        <img src="pics/profile/jixing.jpg" alt="Jixing Li">
+                    </div>
                     <h4>Jixing Li</h4>
                     <p>City University of Hong Kong</p>
                 </div>
                 <div class="organizer-card">
-                    <div class="organizer-avatar">LL</div>
+                    <div class="organizer-avatar">
+                        <img src="pics/profile/shaonan.jpg" alt="Shaonan Wang">
+                    </div>
                     <h4>Shaonan Wang</h4>
                     <p>The Hong Kong Polytechnic University</p>
                 </div>
                 <div class="organizer-card">
-                    <div class="organizer-avatar">OJ</div>
+                    <div class="organizer-avatar">
+                        <img src="pics/profile/zhengwu.jpg" alt="Zhengwu Ma">
+                    </div>
                     <h4>Zhengwu Ma</h4>
                     <p>City University of Hong Kong</p>
                 </div>
                 <div class="organizer-card">
-                    <div class="organizer-avatar">HL</div>
+                    <div class="organizer-avatar">
+                        <img src="pics/profile/chengcheng.jpg" alt="Chengcheng Wang">
+                    </div>
                     <h4>Chengcheng Wang</h4>
                     <p>City University of Hong Kong</p>
                 </div>
                 <div class="organizer-card">
-                    <div class="organizer-avatar">PS</div>
+                    <div class="organizer-avatar">
+                        <img src="pics/profile/yuhan.jpg" alt="Yuhan Huang">
+                    </div>
                     <h4>Yuhan Huang</h4>
                     <p>City University of Hong Kong</p>
                 </div>
