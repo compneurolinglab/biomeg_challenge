@@ -243,16 +243,22 @@
         /* Actions */
         .team-actions {
             display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            align-items: center;
+            flex-direction: column;
+            gap: 0.5rem;
             padding-top: 1rem;
             border-top: 1px solid var(--gray-200);
         }
 
+        .action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
         .link-input {
             flex: 1;
-            min-width: 200px;
+            min-width: 150px;
             padding: 0.6rem 0.8rem;
             border: 1px solid var(--gray-200);
             border-radius: 8px;
@@ -613,14 +619,24 @@
                             ` : ''}
                             
                             <div class="team-actions">
-                                <input type="text" class="link-input" id="link-${team.id}" 
-                                    placeholder="MEG Download Link (Dropbox/Baidu)" 
-                                    value="${team.megLink || ''}">
-                                ${team.megApproved ? `
-                                    <button class="btn btn-revoke" onclick="revokeAccess('${team.id}', ${team.isLegacy || false})">Revoke Access</button>
-                                ` : `
-                                    <button class="btn btn-approve" onclick="approveAccess('${team.id}', ${team.isLegacy || false})">Approve & Send Link</button>
-                                `}
+                                <div class="action-row">
+                                    <label style="font-size: 0.8rem; color: var(--gray-500); margin-right: 0.5rem;">Team Name:</label>
+                                    <input type="text" class="link-input" id="teamname-${team.id}" 
+                                        placeholder="Enter team name" 
+                                        value="${team.teamName || ''}" style="flex: 1;">
+                                    <button class="btn btn-secondary" onclick="saveTeamName('${team.id}')" style="white-space: nowrap;">Save Name</button>
+                                </div>
+                                <div class="action-row" style="margin-top: 0.5rem;">
+                                    <label style="font-size: 0.8rem; color: var(--gray-500); margin-right: 0.5rem;">MEG Link:</label>
+                                    <input type="text" class="link-input" id="link-${team.id}" 
+                                        placeholder="MEG Download Link (Dropbox/Baidu)" 
+                                        value="${team.megLink || ''}" style="flex: 1;">
+                                    ${team.megApproved ? `
+                                        <button class="btn btn-revoke" onclick="revokeAccess('${team.id}', ${team.isLegacy || false})">Revoke Access</button>
+                                    ` : `
+                                        <button class="btn btn-approve" onclick="approveAccess('${team.id}', ${team.isLegacy || false})">Approve & Send Link</button>
+                                    `}
+                                </div>
                             </div>
                         </div>
                     `;
@@ -720,6 +736,41 @@
             } catch (error) {
                 console.error('Error revoking access:', error);
                 showToast('Error revoking access. Please try again.', 'error');
+            }
+        };
+
+        // Save team name
+        window.saveTeamName = async function(teamId) {
+            const input = document.getElementById(`teamname-${teamId}`);
+            const newName = input.value.trim();
+            
+            try {
+                const teamRef = doc(db, 'teams', teamId);
+                const teamDoc = await getDoc(teamRef);
+                
+                if (teamDoc.exists()) {
+                    await updateDoc(teamRef, { teamName: newName });
+                } else {
+                    // Create team document for legacy users
+                    const userDoc = await getDoc(doc(db, 'users', teamId));
+                    const userData = userDoc.exists() ? userDoc.data() : {};
+                    
+                    await setDoc(teamRef, {
+                        teamLeaderId: teamId,
+                        teamLeaderEmail: userData.email || '',
+                        teamLeaderName: `${userData.title || ''} ${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Unknown',
+                        teamName: newName,
+                        megApproved: false,
+                        megLink: '',
+                        createdAt: userData.createdAt || new Date().toISOString()
+                    });
+                }
+                
+                showToast(`Team name updated to "${newName || 'Unnamed Team'}"!`, 'success');
+                loadTeamsData(); // Refresh to show updated name
+            } catch (error) {
+                console.error('Error saving team name:', error);
+                showToast('Error saving team name. Please try again.', 'error');
             }
         };
 
