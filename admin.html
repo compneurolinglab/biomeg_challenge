@@ -438,7 +438,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -490,10 +490,10 @@
             try {
                 // Get all teams
                 const teamsSnapshot = await getDocs(collection(db, 'teams'));
-                const teams = [];
+                const teamsMap = {};
                 
                 teamsSnapshot.forEach(doc => {
-                    teams.push({ id: doc.id, ...doc.data() });
+                    teamsMap[doc.id] = { id: doc.id, ...doc.data() };
                 });
 
                 // Get all users
@@ -504,29 +504,56 @@
                     users.push({ id: doc.id, ...doc.data() });
                 });
 
-                // Update stats
-                document.getElementById('totalTeams').textContent = teams.length;
-                document.getElementById('totalUsers').textContent = users.length;
-                document.getElementById('approvedTeams').textContent = teams.filter(t => t.megApproved).length;
-                document.getElementById('pendingTeams').textContent = teams.filter(t => !t.megApproved).length;
-
-                // Group users by teamId
+                // Group users by teamId and find orphan users (no team document)
                 const usersByTeam = {};
+                const orphanUsers = [];
+                
                 users.forEach(user => {
                     const teamId = user.teamId || user.id;
                     if (!usersByTeam[teamId]) {
                         usersByTeam[teamId] = [];
                     }
                     usersByTeam[teamId].push(user);
+                    
+                    // Check if this user should have a team document but doesn't
+                    if (!teamsMap[teamId] && (user.isTeamLeader || !user.teamId)) {
+                        orphanUsers.push(user);
+                    }
                 });
 
+                // Create team entries for orphan users (users without team documents)
+                const allTeams = Object.values(teamsMap);
+                
+                // Add orphan users as "virtual teams"
+                orphanUsers.forEach(user => {
+                    const teamId = user.teamId || user.id;
+                    if (!teamsMap[teamId]) {
+                        allTeams.push({
+                            id: teamId,
+                            teamLeaderId: user.id,
+                            teamLeaderEmail: user.email,
+                            teamLeaderName: `${user.title || ''} ${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown',
+                            megApproved: user.megApproved || false,
+                            megLink: user.megLink || '',
+                            createdAt: user.createdAt || new Date().toISOString(),
+                            isLegacy: true // Flag to indicate this needs team doc creation
+                        });
+                    }
+                });
+
+                // Update stats
+                document.getElementById('totalTeams').textContent = allTeams.length;
+                document.getElementById('totalUsers').textContent = users.length;
+                document.getElementById('approvedTeams').textContent = allTeams.filter(t => t.megApproved).length;
+                document.getElementById('pendingTeams').textContent = allTeams.filter(t => !t.megApproved).length;
+
                 // Render teams
-                if (teams.length === 0) {
+                if (allTeams.length === 0) {
                     teamsList.innerHTML = '<p style="color: var(--gray-500); text-align: center; padding: 2rem;">No teams registered yet.</p>';
                     return;
                 }
 
-                teamsList.innerHTML = teams.map(team => {
+                teamsList.innerHTML = allTeams.map(team => {
                     const teamMembers = usersByTeam[team.id] || [];
                     const memberCount = teamMembers.length;
                     
@@ -534,7 +561,7 @@
                         <div class="team-card" data-team-id="${team.id}">
                             <div class="team-header">
                                 <div class="team-info">
-                                    <h4>${team.teamLeaderName || 'Unknown Team'}</h4>
+                                    <h4>${team.teamLeaderName || 'Unknown Team'} ${team.isLegacy ? '<span style="color: var(--orange); font-size: 0.75rem;">(Legacy - needs migration)</span>' : ''}</h4>
                                     <p>${team.teamLeaderEmail || 'No email'} • ${memberCount} member${memberCount !== 1 ? 's' : ''} • Created: ${new Date(team.createdAt).toLocaleDateString()}</p>
                                 </div>
                                 <div class="team-status">
@@ -569,9 +596,9 @@
                                     placeholder="MEG Download Link (Dropbox/Baidu)" 
                                     value="${team.megLink || ''}">
                                 ${team.megApproved ? `
-                                    <button class="btn btn-revoke" onclick="revokeAccess('${team.id}')">Revoke Access</button>
+                                    <button class="btn btn-revoke" onclick="revokeAccess('${team.id}', ${team.isLegacy || false})">Revoke Access</button>
                                 ` : `
-                                    <button class="btn btn-approve" onclick="approveAccess('${team.id}')">Approve & Send Link</button>
+                                    <button class="btn btn-approve" onclick="approveAccess('${team.id}', ${team.isLegacy || false})">Approve & Send Link</button>
                                 `}
                             </div>
                         </div>
@@ -585,7 +612,7 @@
         }
 
         // Approve team access
-        window.approveAccess = async function(teamId) {
+        window.approveAccess = async function(teamId, isLegacy = false) {
             const linkInput = document.getElementById(`link-${teamId}`);
             const megLink = linkInput.value.trim();
 
@@ -595,11 +622,40 @@
             }
 
             try {
-                await updateDoc(doc(db, 'teams', teamId), {
-                    megApproved: true,
-                    megLink: megLink,
-                    approvedAt: new Date().toISOString()
-                });
+                const teamRef = doc(db, 'teams', teamId);
+                const teamDoc = await getDoc(teamRef);
+                
+                if (teamDoc.exists()) {
+                    // Team document exists, just update it
+                    await updateDoc(teamRef, {
+                        megApproved: true,
+                        megLink: megLink,
+                        approvedAt: new Date().toISOString()
+                    });
+                } else {
+                    // Legacy user - create team document first
+                    // Find the user to get their info
+                    const userDoc = await getDoc(doc(db, 'users', teamId));
+                    const userData = userDoc.exists() ? userDoc.data() : {};
+                    
+                    await setDoc(teamRef, {
+                        teamLeaderId: teamId,
+                        teamLeaderEmail: userData.email || '',
+                        teamLeaderName: `${userData.title || ''} ${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Unknown',
+                        megApproved: true,
+                        megLink: megLink,
+                        createdAt: userData.createdAt || new Date().toISOString(),
+                        approvedAt: new Date().toISOString()
+                    });
+                    
+                    // Also update the user's teamId if not set
+                    if (!userData.teamId) {
+                        await updateDoc(doc(db, 'users', teamId), {
+                            teamId: teamId,
+                            isTeamLeader: true
+                        });
+                    }
+                }
 
                 showToast('Team approved! All members can now access the download link.', 'success');
                 loadTeamsData(); // Refresh the list
@@ -610,15 +666,33 @@
         };
 
         // Revoke team access
-        window.revokeAccess = async function(teamId) {
+        window.revokeAccess = async function(teamId, isLegacy = false) {
             if (!confirm('Are you sure you want to revoke access for this team?')) {
                 return;
             }
 
             try {
-                await updateDoc(doc(db, 'teams', teamId), {
-                    megApproved: false
-                });
+                const teamRef = doc(db, 'teams', teamId);
+                const teamDoc = await getDoc(teamRef);
+                
+                if (teamDoc.exists()) {
+                    await updateDoc(teamRef, {
+                        megApproved: false
+                    });
+                } else {
+                    // For legacy users without team doc, we need to create one first
+                    const userDoc = await getDoc(doc(db, 'users', teamId));
+                    const userData = userDoc.exists() ? userDoc.data() : {};
+                    
+                    await setDoc(teamRef, {
+                        teamLeaderId: teamId,
+                        teamLeaderEmail: userData.email || '',
+                        teamLeaderName: `${userData.title || ''} ${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Unknown',
+                        megApproved: false,
+                        megLink: '',
+                        createdAt: userData.createdAt || new Date().toISOString()
+                    });
+                }
 
                 showToast('Access revoked.', 'success');
                 loadTeamsData(); // Refresh the list
