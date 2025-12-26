@@ -1072,9 +1072,13 @@
                     renderTeamMembers(updatedUserDoc.data().teamMembers || []);
                 }
                 
+                // Use production URL for sharing
+                const siteUrl = 'https://compneurolinglab.github.io/biomeg_challenge';
+                const registerUrl = `${siteUrl}/register.html`;
+                
                 showMessage(
                     'Invitation Sent!', 
-                    `<strong>${name}</strong> has been invited to your team.<br><br>When they register with <strong>${email}</strong>, they will automatically be linked to your team and you'll both see each other in your portals.<br><br>Share this link:<br><a href="${window.location.origin}/register.html" style="color: var(--orange); word-break: break-all;">${window.location.origin}/register.html</a>`,
+                    `<strong>${name}</strong> has been invited to your team.<br><br>When they register with <strong>${email}</strong>, they will automatically be linked to your team and you'll both see each other in your portals.<br><br>Share this link:<br><a href="${registerUrl}" target="_blank" style="color: var(--orange); word-break: break-all;">${registerUrl}</a><br><br><button onclick="navigator.clipboard.writeText('${registerUrl}'); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy Link', 2000)" style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: var(--orange); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Copy Link</button>`,
                     'success'
                 );
                 
