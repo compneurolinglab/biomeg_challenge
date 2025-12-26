@@ -857,7 +857,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -881,6 +881,7 @@
         const logoutBtn = document.getElementById('logoutBtn');
 
         let currentUserId = null;
+        let currentTeamId = null;
 
         // Message Modal Functions
         function showMessage(title, text, type = 'info') {
@@ -908,28 +909,83 @@
             document.getElementById('messageModal').classList.remove('active');
         }
 
-        // Render team members
-        function renderTeamMembers(teamMembers) {
+        // Render team members (registered users with same teamId)
+        function renderTeamMembers(registeredMembers, pendingInvites) {
             const teamList = document.getElementById('teamList');
             
-            if (!teamMembers || teamMembers.length === 0) {
-                teamList.innerHTML = '<p class="no-team">No team members added yet</p>';
+            if ((!registeredMembers || registeredMembers.length === 0) && (!pendingInvites || pendingInvites.length === 0)) {
+                teamList.innerHTML = '<p class="no-team">No team members yet. Invite your teammates below!</p>';
                 return;
             }
 
-            teamList.innerHTML = teamMembers.map(member => `
-                <div class="team-member-card ${member.registered ? 'registered' : 'pending'}">
-                    <div class="team-member-info">
-                        <h5>${member.name || 'Unnamed'}</h5>
-                        <p><strong>Email:</strong> ${member.email || 'N/A'}</p>
-                        ${member.affiliation ? `<p><strong>Affiliation:</strong> ${member.affiliation}</p>` : ''}
-                        ${member.registered ? `<p class="linked-note">✓ Account linked - you can both see each other as teammates</p>` : `<p class="pending-note">⏳ Waiting for registration with ${member.email}</p>`}
+            let html = '';
+            
+            // Show registered team members
+            if (registeredMembers && registeredMembers.length > 0) {
+                html += registeredMembers.map(member => `
+                    <div class="team-member-card registered">
+                        <div class="team-member-info">
+                            <h5>${member.name}</h5>
+                            <p><strong>Email:</strong> ${member.email}</p>
+                            <p><strong>Affiliation:</strong> ${member.affiliation || 'N/A'}</p>
+                            <p class="linked-note">✓ Registered teammate</p>
+                        </div>
+                        <span class="team-member-status status-registered">✓ Active</span>
                     </div>
-                    <span class="team-member-status ${member.registered ? 'status-registered' : 'status-invited'}">
-                        ${member.registered ? '✓ Linked' : 'Invited'}
-                    </span>
-                </div>
-            `).join('');
+                `).join('');
+            }
+            
+            // Show pending invites
+            if (pendingInvites && pendingInvites.length > 0) {
+                html += pendingInvites.map(invite => `
+                    <div class="team-member-card pending">
+                        <div class="team-member-info">
+                            <h5>${invite.name || 'Invited'}</h5>
+                            <p><strong>Email:</strong> ${invite.email}</p>
+                            <p class="pending-note">⏳ Waiting for registration</p>
+                        </div>
+                        <span class="team-member-status status-invited">Invited</span>
+                    </div>
+                `).join('');
+            }
+            
+            teamList.innerHTML = html;
+        }
+
+        // Load team members by querying users with same teamId
+        async function loadTeamMembers(teamId, currentUserEmail) {
+            const registeredMembers = [];
+            const pendingInvites = [];
+            
+            // Query all users with the same teamId
+            const teamQuery = query(collection(db, 'users'), where('teamId', '==', teamId));
+            const teamSnapshot = await getDocs(teamQuery);
+            
+            teamSnapshot.forEach(doc => {
+                const data = doc.data();
+                // Exclude current user
+                if (data.email.toLowerCase() !== currentUserEmail.toLowerCase()) {
+                    registeredMembers.push({
+                        name: `${data.title || ''} ${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Unknown',
+                        email: data.email,
+                        affiliation: data.affiliation
+                    });
+                }
+            });
+            
+            // Query pending invites for this team
+            const invitesQuery = query(collection(db, 'invites'), where('teamId', '==', teamId));
+            const invitesSnapshot = await getDocs(invitesQuery);
+            
+            invitesSnapshot.forEach(doc => {
+                const data = doc.data();
+                pendingInvites.push({
+                    name: data.invitedName || 'Unknown',
+                    email: data.invitedEmail
+                });
+            });
+            
+            return { registeredMembers, pendingInvites };
         }
 
         // Check authentication state
@@ -955,31 +1011,46 @@
                         document.getElementById('profileEmail').textContent = data.email || user.email;
                         document.getElementById('profileResearch').textContent = data.research || '-';
                         
-                        // Update team members (supports both old string format and new array format)
-                        if (data.teamMembers && Array.isArray(data.teamMembers)) {
-                            renderTeamMembers(data.teamMembers);
-                        } else if (data.team && typeof data.team === 'string' && data.team.trim()) {
-                            // Legacy format: convert string to array
-                            const members = data.team.split('\n').filter(m => m.trim()).map(m => ({
-                                name: m.trim(),
-                                email: '',
-                                affiliation: '',
-                                registered: false
-                            }));
-                            renderTeamMembers(members);
-                        } else {
-                            renderTeamMembers([]);
-                        }
+                        // Store teamId for invitations
+                        currentTeamId = data.teamId || user.uid;
                         
-                        // Update MEG data status
+                        // Load team members by teamId
+                        const { registeredMembers, pendingInvites } = await loadTeamMembers(currentTeamId, data.email);
+                        renderTeamMembers(registeredMembers, pendingInvites);
+                        
+                        // Fetch MEG data status from TEAM document (shared by all team members)
                         const megStatus = document.getElementById('megStatus');
                         const megBadge = document.getElementById('megBadge');
                         
-                        if (data.megApproved) {
-                            megStatus.innerHTML = `<a href="${data.megLink || '#'}" target="_blank" style="color: var(--orange);">Click to download</a>`;
-                            megBadge.textContent = 'Available';
-                            megBadge.className = 'status-badge status-available';
-                        } else {
+                        try {
+                            const teamDoc = await getDoc(doc(db, 'teams', currentTeamId));
+                            
+                            if (teamDoc.exists()) {
+                                const teamData = teamDoc.data();
+                                
+                                if (teamData.megApproved) {
+                                    megStatus.innerHTML = `<a href="${teamData.megLink || '#'}" target="_blank" style="color: var(--orange);">Click to download</a>`;
+                                    megBadge.textContent = 'Available';
+                                    megBadge.className = 'status-badge status-available';
+                                } else {
+                                    megStatus.textContent = 'Pending approval (team-wide)';
+                                    megBadge.textContent = 'Pending';
+                                    megBadge.className = 'status-badge status-pending';
+                                }
+                            } else {
+                                // Fallback: check user document for legacy data
+                                if (data.megApproved) {
+                                    megStatus.innerHTML = `<a href="${data.megLink || '#'}" target="_blank" style="color: var(--orange);">Click to download</a>`;
+                                    megBadge.textContent = 'Available';
+                                    megBadge.className = 'status-badge status-available';
+                                } else {
+                                    megStatus.textContent = 'Pending approval';
+                                    megBadge.textContent = 'Pending';
+                                    megBadge.className = 'status-badge status-pending';
+                                }
+                            }
+                        } catch (teamError) {
+                            console.error('Error loading team data:', teamError);
                             megStatus.textContent = 'Pending approval';
                             megBadge.textContent = 'Pending';
                             megBadge.className = 'status-badge status-pending';
@@ -1025,7 +1096,7 @@
                 return;
             }
             
-            if (!currentUserId) {
+            if (!currentUserId || !currentTeamId) {
                 showMessage('Please Wait', 'The page is still loading. Please try again in a moment.', 'info');
                 return;
             }
@@ -1040,20 +1111,10 @@
                 const currentUserData = currentUserDoc.data();
                 const inviterName = `${currentUserData.title || ''} ${currentUserData.firstName || ''} ${currentUserData.lastName || ''}`.trim();
 
-                // Add to user's teamMembers
-                await updateDoc(userRef, {
-                    teamMembers: arrayUnion({
-                        name: name,
-                        email: email,
-                        affiliation: '',
-                        registered: false,
-                        invitedAt: new Date().toISOString()
-                    })
-                });
-
-                // Create an invite record so the invitee can be linked when they register
+                // Create an invite record with teamId so the invitee joins the same team
                 const inviteRef = doc(db, 'invites', email);
                 await setDoc(inviteRef, {
+                    teamId: currentTeamId,
                     inviterUserId: currentUserId,
                     inviterName: inviterName,
                     inviterEmail: currentUserData.email,
@@ -1067,10 +1128,8 @@
                 emailInput.value = '';
                 
                 // Refresh team list
-                const updatedUserDoc = await getDoc(userRef);
-                if (updatedUserDoc.exists()) {
-                    renderTeamMembers(updatedUserDoc.data().teamMembers || []);
-                }
+                const { registeredMembers, pendingInvites } = await loadTeamMembers(currentTeamId, currentUserData.email);
+                renderTeamMembers(registeredMembers, pendingInvites);
                 
                 // Use production URL for sharing
                 const siteUrl = 'https://compneurolinglab.github.io/biomeg_challenge';

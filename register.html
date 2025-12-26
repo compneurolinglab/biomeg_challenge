@@ -1127,7 +1127,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -1185,7 +1185,7 @@
                 }
             });
 
-            // Collect form data
+            // Collect form data (user-level info only, no MEG data - that's team-level)
             const formData = {
                 title: document.getElementById('title').value,
                 firstName: document.getElementById('firstName').value,
@@ -1194,10 +1194,7 @@
                 affiliation: document.getElementById('affiliation').value,
                 supervisor: document.getElementById('supervisor').value,
                 email: document.getElementById('email').value,
-                teamMembers: teamMembers,
                 research: document.getElementById('research').value,
-                megApproved: false,
-                megLink: '',
                 createdAt: new Date().toISOString()
             };
             
@@ -1210,49 +1207,35 @@
                 const inviteRef = doc(db, 'invites', formData.email.toLowerCase());
                 const inviteDoc = await getDoc(inviteRef);
                 
+                let teamId;
+                let isTeamLeader = false;
+                
                 if (inviteDoc.exists()) {
-                    // This user was invited! Link them to the inviter's team
+                    // This user was invited! Join the existing team
                     const inviteData = inviteDoc.data();
+                    teamId = inviteData.teamId;
                     
-                    // Add the inviter as a team member for this new user
-                    formData.teamMembers = formData.teamMembers || [];
-                    formData.teamMembers.push({
-                        name: inviteData.inviterName,
-                        email: inviteData.inviterEmail,
-                        affiliation: '',
-                        registered: true,
-                        userId: inviteData.inviterUserId,
-                        linkedAt: new Date().toISOString()
-                    });
-                    
-                    // Update the inviter's document to mark this member as registered
-                    const inviterRef = doc(db, 'users', inviteData.inviterUserId);
-                    const inviterDoc = await getDoc(inviterRef);
-                    
-                    if (inviterDoc.exists()) {
-                        const inviterData = inviterDoc.data();
-                        const updatedTeamMembers = (inviterData.teamMembers || []).map(member => {
-                            if (member.email.toLowerCase() === formData.email.toLowerCase()) {
-                                return {
-                                    ...member,
-                                    name: `${formData.title || ''} ${formData.firstName} ${formData.lastName}`.trim(),
-                                    affiliation: formData.affiliation,
-                                    registered: true,
-                                    userId: user.uid,
-                                    linkedAt: new Date().toISOString()
-                                };
-                            }
-                            return member;
-                        });
-                        
-                        await updateDoc(inviterRef, {
-                            teamMembers: updatedTeamMembers
-                        });
-                    }
-                    
-                    // Delete the invite document
+                    // Delete the invite document (no longer needed)
                     await deleteDoc(inviteRef);
+                } else {
+                    // New user without invite - create their own team
+                    teamId = user.uid; // Use their userId as teamId
+                    isTeamLeader = true;
+                    
+                    // Create team document with MEG data access (team-level)
+                    await setDoc(doc(db, 'teams', teamId), {
+                        teamLeaderId: user.uid,
+                        teamLeaderEmail: formData.email,
+                        teamLeaderName: `${formData.title || ''} ${formData.firstName} ${formData.lastName}`.trim(),
+                        megApproved: false,
+                        megLink: '',
+                        createdAt: new Date().toISOString()
+                    });
                 }
+                
+                // Add teamId and role to formData
+                formData.teamId = teamId;
+                formData.isTeamLeader = isTeamLeader;
                 
                 // Save user profile to Firestore
                 await setDoc(doc(db, 'users', user.uid), formData);

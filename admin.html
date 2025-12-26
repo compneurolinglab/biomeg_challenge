@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - BIOMEG 2026</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy: #1a2332;
+            --orange: #c75b2a;
+            --orange-light: #d4845c;
+            --cream: #faf8f5;
+            --gray-100: #f5f5f5;
+            --gray-200: #e5e5e5;
+            --gray-500: #6b7280;
+            --green: #22c55e;
+            --red: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--cream);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .admin-header {
+            background: var(--navy);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .admin-header h1 span {
+            background: var(--orange);
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .admin-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .admin-user span {
+            color: var(--gray-200);
+            font-size: 0.9rem;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid var(--gray-500);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Main Content */
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            color: var(--navy);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-card p {
+            color: var(--gray-500);
+            font-size: 0.9rem;
+        }
+
+        /* Teams List */
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.3rem;
+            color: var(--navy);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .teams-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .team-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .team-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .team-info h4 {
+            font-size: 1.1rem;
+            color: var(--navy);
+            margin-bottom: 0.25rem;
+        }
+
+        .team-info p {
+            color: var(--gray-500);
+            font-size: 0.85rem;
+        }
+
+        .team-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-approved {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Team Members */
+        .team-members {
+            margin-bottom: 1rem;
+        }
+
+        .team-members h5 {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .members-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .member-item {
+            background: var(--gray-100);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .member-item strong {
+            color: var(--navy);
+        }
+
+        .member-item span {
+            color: var(--gray-500);
+            display: block;
+            font-size: 0.8rem;
+        }
+
+        .member-item .leader-badge {
+            background: var(--orange);
+            color: white;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-left: 0.5rem;
+        }
+
+        /* Actions */
+        .team-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .link-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .link-input:focus {
+            outline: none;
+            border-color: var(--orange);
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .btn-approve {
+            background: var(--green);
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: #16a34a;
+        }
+
+        .btn-revoke {
+            background: var(--red);
+            color: white;
+        }
+
+        .btn-revoke:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--navy);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-500);
+            color: white;
+        }
+
+        /* Loading & Access Denied */
+        .loading-state, .access-denied {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+        }
+
+        .loading-state p {
+            color: var(--gray-500);
+            font-size: 1.1rem;
+        }
+
+        .access-denied h2 {
+            color: var(--red);
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .access-denied p {
+            color: var(--gray-500);
+            margin-bottom: 1.5rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Message Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: var(--green);
+        }
+
+        .toast.error {
+            background: var(--red);
+        }
+
+        /* Research Interest */
+        .research-interest {
+            background: var(--cream);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--gray-500);
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .admin-header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .team-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .team-actions {
+                flex-direction: column;
+            }
+
+            .link-input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading State -->
+    <div id="loadingState" class="loading-state">
+        <p>Loading admin panel...</p>
+    </div>
+
+    <!-- Access Denied -->
+    <div id="accessDenied" class="access-denied hidden">
+        <h2>🚫 Access Denied</h2>
+        <p>You don't have permission to access the admin panel.</p>
+        <a href="portal.html" class="btn btn-secondary">Go to Portal</a>
+    </div>
+
+    <!-- Main Admin Content -->
+    <div id="adminContent" class="hidden">
+        <header class="admin-header">
+            <h1>BIOMEG 2026 <span>ADMIN</span></h1>
+            <div class="admin-user">
+                <span id="adminEmail"></span>
+                <button class="logout-btn" id="logoutBtn">Logout</button>
+            </div>
+        </header>
+
+        <div class="admin-container">
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="totalTeams">0</h3>
+                    <p>Total Teams</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="totalUsers">0</h3>
+                    <p>Total Users</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="approvedTeams">0</h3>
+                    <p>Approved Teams</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="pendingTeams">0</h3>
+                    <p>Pending Approval</p>
+                </div>
+            </div>
+
+            <!-- Teams List -->
+            <h2 class="section-title">📋 Registered Teams</h2>
+            <div class="teams-list" id="teamsList">
+                <!-- Teams will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAMSJBFzhcb9Dm0hv085xG-PSE5J9G748A",
+            authDomain: "lpp-challenge.firebaseapp.com",
+            projectId: "lpp-challenge",
+            storageBucket: "lpp-challenge.firebasestorage.app",
+            messagingSenderId: "67639447302",
+            appId: "1:67639447302:web:bbd130790fd39013f9d887"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // ⚠️ ADMIN EMAIL WHITELIST - Only these emails can access admin panel
+        const ADMIN_EMAILS = [
+            'jixingli@cityu.edu.hk',
+            'yuhan.huang112211@gmail.com',
+            'zhengwu.ma@my.cityu.edu.hk',
+            'zhengwumaa@gmail.com',
+            'yuhan.huang@my.cityu.edu.hk'
+            // Add more admin emails here
+        ];
+
+        // DOM Elements
+        const loadingState = document.getElementById('loadingState');
+        const accessDenied = document.getElementById('accessDenied');
+        const adminContent = document.getElementById('adminContent');
+        const adminEmail = document.getElementById('adminEmail');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Load all teams and users
+        async function loadTeamsData() {
+            const teamsList = document.getElementById('teamsList');
+            teamsList.innerHTML = '<p>Loading teams...</p>';
+
+            try {
+                // Get all teams
+                const teamsSnapshot = await getDocs(collection(db, 'teams'));
+                const teams = [];
+                
+                teamsSnapshot.forEach(doc => {
+                    teams.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Get all users
+                const usersSnapshot = await getDocs(collection(db, 'users'));
+                const users = [];
+                
+                usersSnapshot.forEach(doc => {
+                    users.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Update stats
+                document.getElementById('totalTeams').textContent = teams.length;
+                document.getElementById('totalUsers').textContent = users.length;
+                document.getElementById('approvedTeams').textContent = teams.filter(t => t.megApproved).length;
+                document.getElementById('pendingTeams').textContent = teams.filter(t => !t.megApproved).length;
+
+                // Group users by teamId
+                const usersByTeam = {};
+                users.forEach(user => {
+                    const teamId = user.teamId || user.id;
+                    if (!usersByTeam[teamId]) {
+                        usersByTeam[teamId] = [];
+                    }
+                    usersByTeam[teamId].push(user);
+                });
+
+                // Render teams
+                if (teams.length === 0) {
+                    teamsList.innerHTML = '<p style="color: var(--gray-500); text-align: center; padding: 2rem;">No teams registered yet.</p>';
+                    return;
+                }
+
+                teamsList.innerHTML = teams.map(team => {
+                    const teamMembers = usersByTeam[team.id] || [];
+                    const memberCount = teamMembers.length;
+                    
+                    return `
+                        <div class="team-card" data-team-id="${team.id}">
+                            <div class="team-header">
+                                <div class="team-info">
+                                    <h4>${team.teamLeaderName || 'Unknown Team'}</h4>
+                                    <p>${team.teamLeaderEmail || 'No email'} • ${memberCount} member${memberCount !== 1 ? 's' : ''} • Created: ${new Date(team.createdAt).toLocaleDateString()}</p>
+                                </div>
+                                <div class="team-status">
+                                    <span class="status-badge ${team.megApproved ? 'status-approved' : 'status-pending'}">
+                                        ${team.megApproved ? '✓ Approved' : '⏳ Pending'}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="team-members">
+                                <h5>Team Members</h5>
+                                <div class="members-grid">
+                                    ${teamMembers.map(member => `
+                                        <div class="member-item">
+                                            <strong>${member.title || ''} ${member.firstName || ''} ${member.lastName || ''}</strong>
+                                            ${member.isTeamLeader ? '<span class="leader-badge">Leader</span>' : ''}
+                                            <span>${member.email}</span>
+                                            <span>${member.affiliation || 'No affiliation'} • ${member.position || 'No position'}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            
+                            ${teamMembers[0]?.research ? `
+                                <div class="research-interest">
+                                    <strong>Research Interest:</strong> ${teamMembers[0].research}
+                                </div>
+                            ` : ''}
+                            
+                            <div class="team-actions">
+                                <input type="text" class="link-input" id="link-${team.id}" 
+                                    placeholder="MEG Download Link (Dropbox/Baidu)" 
+                                    value="${team.megLink || ''}">
+                                ${team.megApproved ? `
+                                    <button class="btn btn-revoke" onclick="revokeAccess('${team.id}')">Revoke Access</button>
+                                ` : `
+                                    <button class="btn btn-approve" onclick="approveAccess('${team.id}')">Approve & Send Link</button>
+                                `}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading teams:', error);
+                teamsList.innerHTML = '<p style="color: var(--red);">Error loading teams. Please refresh the page.</p>';
+            }
+        }
+
+        // Approve team access
+        window.approveAccess = async function(teamId) {
+            const linkInput = document.getElementById(`link-${teamId}`);
+            const megLink = linkInput.value.trim();
+
+            if (!megLink) {
+                showToast('Please enter a download link first!', 'error');
+                return;
+            }
+
+            try {
+                await updateDoc(doc(db, 'teams', teamId), {
+                    megApproved: true,
+                    megLink: megLink,
+                    approvedAt: new Date().toISOString()
+                });
+
+                showToast('Team approved! All members can now access the download link.', 'success');
+                loadTeamsData(); // Refresh the list
+            } catch (error) {
+                console.error('Error approving team:', error);
+                showToast('Error approving team. Please try again.', 'error');
+            }
+        };
+
+        // Revoke team access
+        window.revokeAccess = async function(teamId) {
+            if (!confirm('Are you sure you want to revoke access for this team?')) {
+                return;
+            }
+
+            try {
+                await updateDoc(doc(db, 'teams', teamId), {
+                    megApproved: false
+                });
+
+                showToast('Access revoked.', 'success');
+                loadTeamsData(); // Refresh the list
+            } catch (error) {
+                console.error('Error revoking access:', error);
+                showToast('Error revoking access. Please try again.', 'error');
+            }
+        };
+
+        // Check authentication and admin status
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Check if user is an admin
+                const isAdmin = ADMIN_EMAILS.includes(user.email.toLowerCase());
+
+                if (isAdmin) {
+                    // Show admin panel
+                    loadingState.classList.add('hidden');
+                    adminContent.classList.remove('hidden');
+                    adminEmail.textContent = user.email;
+                    
+                    // Load teams data
+                    loadTeamsData();
+                } else {
+                    // Access denied
+                    loadingState.classList.add('hidden');
+                    accessDenied.classList.remove('hidden');
+                }
+            } else {
+                // Not logged in, redirect to login
+                window.location.href = 'login.html';
+            }
+        });
+
+        // Handle logout
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        });
+    </script>
+</body>
+</html>
+
