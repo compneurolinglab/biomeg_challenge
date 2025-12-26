@@ -66,6 +66,21 @@
             font-size: 0.9rem;
         }
 
+        .portal-link {
+            background: var(--orange);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .portal-link:hover {
+            background: var(--orange-light);
+        }
+
         .logout-btn {
             background: transparent;
             border: 1px solid var(--gray-500);
@@ -397,6 +412,7 @@
         <header class="admin-header">
             <h1>BIOMEG 2026 <span>ADMIN</span></h1>
             <div class="admin-user">
+                <a href="portal.html" class="portal-link">👤 My Portal</a>
                 <span id="adminEmail"></span>
                 <button class="logout-btn" id="logoutBtn">Logout</button>
             </div>
