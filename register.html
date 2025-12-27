@@ -361,6 +361,37 @@
             padding-right: 3rem;
         }
 
+        /* Password Input with Toggle */
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-wrapper input {
+            padding-right: 3rem;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 0.8rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            padding: 0.5rem;
+        }
+
+        .password-toggle:hover {
+            opacity: 1;
+        }
+
+        .password-toggle.showing {
+            opacity: 1;
+        }
+
         .form-group input:focus,
         .form-group textarea:focus,
         .form-group select:focus {
@@ -949,11 +980,17 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="password">Password <span class="required">*</span></label>
-                            <input type="password" id="password" name="password" required placeholder="Create a password" minlength="6">
+                            <div class="password-input-wrapper">
+                                <input type="password" id="password" name="password" required placeholder="Create a password" minlength="6">
+                                <button type="button" class="password-toggle" onclick="togglePassword('password', this)">👁️</button>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="confirmPassword">Confirm Password <span class="required">*</span></label>
-                            <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Confirm your password">
+                            <div class="password-input-wrapper">
+                                <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Confirm your password">
+                                <button type="button" class="password-toggle" onclick="togglePassword('confirmPassword', this)">👁️</button>
+                            </div>
                         </div>
                     </div>
                     <p class="hint" style="margin-top: -1rem; margin-bottom: 1.5rem;">Password must be at least 6 characters. You'll use this to log in to your portal.</p>
@@ -1014,6 +1051,20 @@
     <script>
         function toggleMenu() {
             document.getElementById('navLinks').classList.toggle('active');
+        }
+
+        // Password visibility toggle
+        function togglePassword(inputId, button) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🙈';
+                button.classList.add('showing');
+            } else {
+                input.type = 'password';
+                button.textContent = '👁️';
+                button.classList.remove('showing');
+            }
         }
 
         // Agreement checkbox handler
@@ -1133,7 +1184,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, runTransaction } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -1231,12 +1282,40 @@
                     teamId = user.uid; // Use their userId as teamId
                     isTeamLeader = true;
                     
+                    // Generate team number using transaction for safety
+                    let teamNumber;
+                    const counterRef = doc(db, 'counters', 'teams');
+                    
+                    try {
+                        teamNumber = await runTransaction(db, async (transaction) => {
+                            const counterDoc = await transaction.get(counterRef);
+                            let newCount;
+                            
+                            if (counterDoc.exists()) {
+                                newCount = counterDoc.data().count + 1;
+                            } else {
+                                newCount = 1;
+                            }
+                            
+                            transaction.set(counterRef, { count: newCount });
+                            return newCount;
+                        });
+                    } catch (e) {
+                        // Fallback: use timestamp-based number if transaction fails
+                        console.error('Counter transaction failed:', e);
+                        teamNumber = Date.now() % 10000;
+                    }
+                    
+                    // Format as "2026XXX"
+                    const teamNumberFormatted = `2026${String(teamNumber).padStart(3, '0')}`;
+                    
                     // Create team document with MEG data access (team-level)
                     await setDoc(doc(db, 'teams', teamId), {
                         teamLeaderId: user.uid,
                         teamLeaderEmail: formData.email,
                         teamLeaderName: `${formData.title || ''} ${formData.firstName} ${formData.lastName}`.trim(),
                         teamName: teamName || '',
+                        teamNumber: teamNumberFormatted,
                         megApproved: false,
                         megLink: '',
                         createdAt: new Date().toISOString()

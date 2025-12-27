@@ -133,6 +133,37 @@
             box-shadow: 0 0 0 4px var(--orange-glow);
         }
 
+        /* Password Input with Toggle */
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-wrapper input {
+            padding-right: 3rem;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 0.8rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            padding: 0.5rem;
+        }
+
+        .password-toggle:hover {
+            opacity: 1;
+        }
+
+        .password-toggle.showing {
+            opacity: 1;
+        }
+
         .error-message {
             background: #fef2f2;
             border: 1px solid #fecaca;
@@ -264,7 +295,10 @@
 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required placeholder="Enter your password">
+                    <div class="password-input-wrapper">
+                        <input type="password" id="password" name="password" required placeholder="Enter your password">
+                        <button type="button" class="password-toggle" onclick="togglePassword()">👁️</button>
+                    </div>
                 </div>
 
                 <div class="forgot-password">
@@ -289,6 +323,23 @@
     </footer>
 
     <!-- Firebase SDK -->
+    <script>
+        // Password visibility toggle
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const button = document.querySelector('.password-toggle');
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🙈';
+                button.classList.add('showing');
+            } else {
+                input.type = 'password';
+                button.textContent = '👁️';
+                button.classList.remove('showing');
+            }
+        }
+    </script>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";

@@ -1181,6 +1181,10 @@
                             if (teamDoc.exists()) {
                                 const teamData = teamDoc.data();
                                 
+                                // Display team number (formatted like 2026001) or fallback to ID
+                                const teamIdDisplay = document.getElementById('teamIdDisplay');
+                                teamIdDisplay.textContent = teamData.teamNumber || currentTeamId.substring(0, 8) + '...';
+                                
                                 // Display team name
                                 const teamNameValue = document.getElementById('teamNameValue');
                                 teamNameValue.textContent = teamData.teamName || 'Not set (click to add)';
